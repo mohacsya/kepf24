@@ -40,7 +40,9 @@ cutRefimgBin = refbinaryIMG(boundariesY(1):boundariesY(2),boundariesX(1):boundar
 parkingSpotX = [281;568;579;295];
 parkingSpotY = [110;107;699;708];
 parkingSpotMask = poly2mask(parkingSpotX,parkingSpotY,size(cutRefimgBW,1),size(cutRefimgBW,2));
-
+parkingSpotRegion = regionprops(parkingSpotMask,"all");
+parkingSpotAngle = parkingSpotRegion.Orientation;
+parkingSpotCentroid = parkingSpotRegion.Centroid;
 
 imwrite(cutRefimg, fullfile(workfolder,"referenceIMG_Cut.png"));
 imwrite(cutRefimgBW, fullfile(workfolder,"referenceIMG_Cut_preprocessed_gray.png"));
@@ -132,9 +134,23 @@ for ii=1:length(imagelist)
     [boundingBoxPoints,angle] = getAngleAndTrueBoundingBox(carregion,true);
     
     carBoxMask = poly2mask(boundingBoxPoints(:,1),boundingBoxPoints(:,2),size(cutRefimgBW,1),size(cutRefimgBW,2));
-    
     carInParkingSpotMask = carBoxMask & parkingSpotMask;
-    imshowpair(cutRefimg, carInParkingSpotMask, "blend");
+    carInParkingSpotAreaProportion = sum(carInParkingSpotMask,"all")/sum(carBoxMask,"all");
+    
+    carNotInParkingSpotMask = carBoxMask & ~parkingSpotMask;
+    parkingSpotMaskNotCar = parkingSpotMask & ~carBoxMask;
+    
+    carInParkingSpotColorMultiplier(1,1,:) = [116, 237, 144];
+    parkingSpotColorMultiplier(1,1,:) = [82, 173, 242];
+    carColorMultiplier(1,1,:) = [214, 208, 94];
+    
+    rgbOverlay = uint8(carInParkingSpotMask .* carInParkingSpotColorMultiplier) + ...
+                   uint8(carNotInParkingSpotMask .*  carColorMultiplier) + ...
+                   uint8(parkingSpotMaskNotCar .* parkingSpotColorMultiplier);
+    
+    
+
+    imshowpair(cutImg, rgbOverlay,"blend");
   
 
     saveas(gcf,fullfile(workfolder,strcat(imgname,"_identified.png")));
