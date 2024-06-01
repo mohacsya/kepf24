@@ -2,13 +2,13 @@ function [boundingBoxPoints,angle] = getAngleAndTrueBoundingBox(careaprops,drawI
 angle = -careaprops.Orientation;
 center = careaprops.Centroid;
 anglevector = [cos(deg2rad(angle)) sin(deg2rad(angle))];
-longvecstart = center + (anglevector*(careaprops.MajorAxisLength/2));
-longvecend = center - (anglevector*(careaprops.MajorAxisLength/2));
+longvecstart = center + (anglevector*(0.9*(careaprops.MajorAxisLength/2)));
+longvecend = center - (anglevector*(0.9*(careaprops.MajorAxisLength/2)));
 longvec = longvecend - longvecstart;
 
 anglevector2 = [-sin(deg2rad(angle)) cos(deg2rad(angle)) ];
-shortvecstart = center + (anglevector2*(careaprops.MinorAxisLength/2));
-shortvecend = center - (anglevector2*(careaprops.MinorAxisLength/2));
+shortvecstart = center + (anglevector2*0.9*(careaprops.MinorAxisLength/2));
+shortvecend = center - (anglevector2*0.9*(careaprops.MinorAxisLength/2));
 shortvec = shortvecend-shortvecstart;
 
 longedge1start = longvecstart+(shortvec/2);

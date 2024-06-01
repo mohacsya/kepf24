@@ -7,9 +7,9 @@ mkdir(workfolder);
 referenceimg = imread("photos2\reference.JPEG");
 [refbinaryIMG,refBW] = preprocessing(referenceimg);
 
-imwrite(referenceimg, fullfile(workfolder,"referenceIMG.png"));
-imwrite(refBW, fullfile(workfolder,"referenceIMG_preprocessed_gray.png"));
-imwrite(refbinaryIMG, fullfile(workfolder,"referenceIMG_preprocessed_bin.png"));
+imwrite(referenceimg, fullfile(workfolder,"referenceIMG_00.png"));
+imwrite(refBW, fullfile(workfolder,"referenceIMG_01_preprocessed_gray.png"));
+imwrite(refbinaryIMG, fullfile(workfolder,"referenceIMG_02_preprocessed_bin.png"));
 
 % binaryIMG = ~binaryIMG;
 [topLeftQR,topRightQR,bottomLeftQR,bottomRightQR] = findLocalizers(refbinaryIMG);
@@ -30,6 +30,10 @@ positions = [positions(:,2), positions(:,1)];
 
 boundariesX = [407, 1223];
 boundariesY = [528, 1379];
+carInParkingSpotColorMultiplier(1,1,:) = [116, 237, 144];
+parkingSpotColorMultiplier(1,1,:) = [82, 173, 242];
+carColorMultiplier(1,1,:) = [214, 208, 94];
+
 
 
 cutRefimg = referenceimg(boundariesY(1):boundariesY(2),boundariesX(1):boundariesX(2),:);
@@ -44,9 +48,9 @@ parkingSpotRegion = regionprops(parkingSpotMask,"all");
 parkingSpotAngle = parkingSpotRegion.Orientation;
 parkingSpotCentroid = parkingSpotRegion.Centroid;
 
-imwrite(cutRefimg, fullfile(workfolder,"referenceIMG_Cut.png"));
-imwrite(cutRefimgBW, fullfile(workfolder,"referenceIMG_Cut_preprocessed_gray.png"));
-imwrite(cutRefimgBin, fullfile(workfolder,"referenceIMG_Cut_preprocessed_bin.png"));
+imwrite(cutRefimg, fullfile(workfolder,"referenceIMG_03_Cut.png"));
+imwrite(cutRefimgBW, fullfile(workfolder,"referenceIMG_04_Cut_preprocessed_gray.png"));
+imwrite(cutRefimgBin, fullfile(workfolder,"referenceIMG_05_Cut_preprocessed_bin.png"));
 
 
 
@@ -54,15 +58,18 @@ imagelist = dir("photos2\*.jpeg");
  
 
 for ii=1:length(imagelist)
+    
     image = imread([imagelist(ii).folder '\'  imagelist(ii).name]);
     [~,imgname,~]  = fileparts([imagelist(ii).folder '\'  imagelist(ii).name]);
-    
+    if(strcmp(imgname,'reference'))
+        continue;
+    end
     
     [binaryIMG,BW] = preprocessing(image);
     
-    imwrite(image, fullfile(workfolder,strcat(imgname,".png")));
-    imwrite(BW, fullfile(workfolder,strcat(imgname,"preprocessed_gray.png")));
-    imwrite(binaryIMG, fullfile(workfolder,strcat(imgname,"preprocessed_bin.png")));
+    imwrite(image, fullfile(workfolder,strcat(imgname,"_00.png")));
+    imwrite(BW, fullfile(workfolder,strcat(imgname,"_01_preprocessed_gray.png")));
+    imwrite(binaryIMG, fullfile(workfolder,strcat(imgname,"_02_preprocessed_bin.png")));
     
 
     [topLeftQR,topRightQR,bottomLeftQR,bottomRightQR] = findLocalizers(binaryIMG);
@@ -87,9 +94,9 @@ for ii=1:length(imagelist)
     cutImgBin = outputImageBin(boundariesY(1):boundariesY(2),boundariesX(1):boundariesX(2));
     cutImg = outputImage(boundariesY(1):boundariesY(2),boundariesX(1):boundariesX(2),:);
     
-    imwrite(cutImg, fullfile(workfolder,strcat(imgname,"_cut.png")));
-    imwrite(cutImgBW, fullfile(workfolder,strcat(imgname,"_cut_gray.png")));
-    imwrite(cutImgBin, fullfile(workfolder,strcat(imgname,"_cut_bin.png")));
+    imwrite(cutImg, fullfile(workfolder,strcat(imgname,"_03_cut.png")));
+    imwrite(cutImgBW, fullfile(workfolder,strcat(imgname,"_04_cut_gray.png")));
+    imwrite(cutImgBin, fullfile(workfolder,strcat(imgname,"_05_cut_bin.png")));
 
     % [BW,maskedRGBImage] = shadowMask5(cutImg);
     % 
@@ -99,16 +106,16 @@ for ii=1:length(imagelist)
 
     diffimg = uint8(abs(double(cutImgBW)-double(cutRefimgBW)));
     
-    imwrite(diffimg, fullfile(workfolder,strcat(imgname,"_diffimg.png")));
+    imwrite(diffimg, fullfile(workfolder,strcat(imgname,"_06_diffimg.png")));
 
     % diffimg(BW) = 0;
     diffimg = imgaussfilt(diffimg);
     
-    diffbin = diffimg >= max(diffimg,[],"all")*0.3;
+    diffbin = diffimg >= 60; %max(diffimg,[],"all")*0.3;
     % diffbin(BW) = 0;
     diffbin=imopen(diffbin,ones(10));
     
-    imwrite(diffimg, fullfile(workfolder,strcat(imgname,"_diffimg_tresholded.png")));
+    imwrite(diffimg, fullfile(workfolder,strcat(imgname,"_07_diffimg_tresholded.png")));
 
     SE = strel("disk",20);
     diffbin = imdilate(diffbin,SE);
@@ -121,13 +128,18 @@ for ii=1:length(imagelist)
     diffbin = imerode(diffbin,SE);
     diffbin = imerode(diffbin,SE);
     diffbin = imerode(diffbin,SE);
-    diffbin = imerode(diffbin,SE);
+    % diffbin = imerode(diffbin,SE);
     regions = regionprops(diffbin,"All");
     [~,idx] = sort([regions.Area],"descend");
     diffbin(:,:) = 0;
     diffbin(regions(1).PixelIdxList) = 1;
+    
+    rgbOverlay_ = uint8(diffbin .* carInParkingSpotColorMultiplier);
+    imobj_ = imshowpair(cutImg, rgbOverlay_,"blend");
+    imwrite(imobj_.CData, fullfile(workfolder,strcat(imgname,"_99_debug.png")));
 
-    imwrite(diffbin, fullfile(workfolder,strcat(imgname,"_diffimg_binarized.png")));
+
+    imwrite(diffbin, fullfile(workfolder,strcat(imgname,"_08_diffimg_binarized.png")));
 
     imshow(cutImg);
     carregion = regionprops(diffbin,"all");
@@ -140,9 +152,7 @@ for ii=1:length(imagelist)
     carNotInParkingSpotMask = carBoxMask & ~parkingSpotMask;
     parkingSpotMaskNotCar = parkingSpotMask & ~carBoxMask;
     
-    carInParkingSpotColorMultiplier(1,1,:) = [116, 237, 144];
-    parkingSpotColorMultiplier(1,1,:) = [82, 173, 242];
-    carColorMultiplier(1,1,:) = [214, 208, 94];
+    
     
     rgbOverlay = uint8(carInParkingSpotMask .* carInParkingSpotColorMultiplier) + ...
                    uint8(carNotInParkingSpotMask .*  carColorMultiplier) + ...
@@ -150,10 +160,18 @@ for ii=1:length(imagelist)
     
     
 
-    imshowpair(cutImg, rgbOverlay,"blend");
-  
-
-    saveas(gcf,fullfile(workfolder,strcat(imgname,"_identified.png")));
+    imobj = imshowpair(cutImg, rgbOverlay,"blend");
+    identifiedRGB = imobj.CData;
+    anglediff =  abs(abs(parkingSpotAngle) - abs(angle));
+    angleVerdict = 1-(anglediff/90);
+    totalVerdict = angleVerdict * carInParkingSpotAreaProportion;   
+    verdictText = ['Car position multiplier: ' num2str(carInParkingSpotAreaProportion,3) newline ...
+                   'Car angle multiplier: ' num2str(angleVerdict,3) newline ...
+                   'Parking verdict: ' num2str(totalVerdict,3)
+    ];
+     identifiedTextedRGB = insertText(identifiedRGB,[50,50], verdictText);
+    imshow(identifiedTextedRGB);
+    imwrite(identifiedTextedRGB,fullfile(workfolder,strcat(imgname,"_09_identified.png")));
     % histogram(diffimg);
     
     % imshowpair(cutRefimg, cutImg, 'montage'); % You can use 'diff', 'montage', etc. for different viewing options
